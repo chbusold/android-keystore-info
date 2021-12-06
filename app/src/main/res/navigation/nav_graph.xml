@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/instanceListFragment">
+    <fragment
+        android:id="@+id/instanceListFragment"
+        android:name="ws.busold.keystoreinfo.InstanceListFragment"
+        android:label="fragment_instance_list"
+        tools:layout="@layout/fragment_instance_list" >
+        <action
+            android:id="@+id/action_instanceListFragment_to_certificateChainFragment"
+            app:destination="@id/certificateChainFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/certificateChainFragment"
+        android:name="ws.busold.keystoreinfo.CertificateChainFragment"
+        android:label="fragment_certificate_chain"
+        tools:layout="@layout/fragment_certificate_chain" />
+</navigation>

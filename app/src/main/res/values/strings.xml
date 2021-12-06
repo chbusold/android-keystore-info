@@ -1,0 +1,48 @@
+<resources>
+    <string name="app_name" translatable="false">Keystore Info</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="default_instance">Default Instance</string>
+    <string name="strongbox_instance">Strongbox Instance</string>
+    <string name="present">Present</string>
+    <string name="not_present">Not present</string>
+    <string name="value_error">Error getting value</string>
+    <string name="available">Available</string>
+    <string name="attestation_versions">Attestation Versions</string>
+    <string name="root_of_trust" translatable="false">Root of Trust</string>
+    <string name="platform_versions">Platform Versions</string>
+    <string name="device_identifiers">Device Identifiers</string>
+    <string name="certificate_status">Certificate Status</string>
+    <string name="certificate_status_ecc">Certificate Status (ECC)</string>
+    <string name="certificate_status_rsa">Certificate Status (RSA)</string>
+    <string name="certificate_signed_by_google_root">Signed by Google root</string>
+    <string name="certificate_chain_length">Certificates in chain</string>
+    <string name="certificate_chain_serials">Certificate serial IDs</string>
+    <string name="revocation_status">Revocation Status</string>
+    <string name="status_ok">Good</string>
+    <string name="status_revoked">Revoked</string>
+    <string name="status_suspended">Suspended</string>
+    <string name="status_invalid">Invalid</string>
+    <string name="status_unknown">Unknown</string>
+    <string name="reason_unspecified">Unspecified</string>
+    <string name="reason_key_compromise">Key compromise</string>
+    <string name="reason_ca_compromise">CA compromise</string>
+    <string name="reason_superseded">Superseded</string>
+    <string name="reason_software_flaw">Software flaw</string>
+    <string name="reason_parser_error">Parser error</string>
+    <string name="reason_network_error">Network error</string>
+    <string name="reason_not_google_root">Not signed by Google root</string>
+    <string name="reason_no_chain">No certificate chain</string>
+    <string name="reason_invalid_signature">Invalid signature</string>
+    <string name="reason_validity_expired">Validity expired</string>
+    <string name="reason_validity_not_yet_valid">Not yet valid</string>
+    <string name="certificate_status_options">Certificate status options</string>
+    <string name="get_certificate_chain">View certificate chain</string>
+    <string name="expand_content">Expand content</string>
+    <string name="leaf_cert">Leaf certificate</string>
+    <string name="root_cert">Root certificate</string>
+    <string name="intermediate_cert">Intermediate certificate</string>
+    <string name="device_cert">Device certificate</string>
+    <string name="sw_enforced">Software-enforced</string>
+    <string name="hw_enforced">Hardware-enforced</string>
+</resources>
