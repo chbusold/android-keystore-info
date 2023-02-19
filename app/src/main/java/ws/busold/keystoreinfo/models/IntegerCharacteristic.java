@@ -14,6 +14,15 @@ public class IntegerCharacteristic extends KeystoreCharacteristic {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof IntegerCharacteristic) {
+            IntegerCharacteristic other = (IntegerCharacteristic) obj;
+            return super.equals(obj) && this.value == other.value;
+        }
+        return false;
+    }
+
+    @Override
     protected void fromASN1Primitive(ASN1Primitive object, KeystoreInfo.Source source) {
         this.value = ASN1Integer.getInstance(object).intValueExact();
         this.source = source;

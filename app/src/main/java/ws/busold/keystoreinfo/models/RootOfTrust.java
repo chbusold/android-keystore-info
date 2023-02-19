@@ -10,6 +10,7 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.util.encoders.Hex;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.StringJoiner;
 
 import ws.busold.keystoreinfo.R;
@@ -21,13 +22,21 @@ public class RootOfTrust extends KeystoreCharacteristic {
     private VerifiedBootState verifiedBootState;
     private byte[] verifiedBootHash;
 
-    RootOfTrust() {
-        super();
-        verifiedBootState = VerifiedBootState.None;
-    }
-
     RootOfTrust(ASN1Sequence hwEnforced, ASN1Sequence swEnforced) {
         super(hwEnforced, swEnforced, ASN1_TAG_ROOT_OF_TRUST);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof RootOfTrust) {
+            RootOfTrust other = (RootOfTrust) obj;
+            return super.equals(obj)
+                && Arrays.equals(this.verifiedBootKey, other.verifiedBootKey)
+                && this.deviceLocked == other.deviceLocked
+                && Arrays.equals(this.verifiedBootHash, other.verifiedBootHash)
+                && this.verifiedBootState == other.verifiedBootState;
+        }
+        return false;
     }
 
     @Override

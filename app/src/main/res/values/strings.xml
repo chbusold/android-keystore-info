@@ -4,15 +4,20 @@
     <string name="no">No</string>
     <string name="default_instance">Default Instance</string>
     <string name="strongbox_instance">Strongbox Instance</string>
+    <string name="device_information">Device Information</string>
+    <string name="supports_attest_rsa">Supports RSA Attestation</string>
+    <string name="supports_attest_ecc">Supports ECC Attestation</string>
+    <string name="cert_info_consistent">Certificate Information Is Consistent</string>
     <string name="present">Present</string>
     <string name="not_present">Not present</string>
     <string name="value_error">Error getting value</string>
     <string name="available">Available</string>
+    <string name="protected_confirmation_available">Supports Protected Confirmation</string>
     <string name="attestation_versions">Attestation Versions</string>
     <string name="root_of_trust" translatable="false">Root of Trust</string>
     <string name="platform_versions">Platform Versions</string>
     <string name="device_identifiers">Device Identifiers</string>
-    <string name="certificate_status">Certificate Status</string>
+    <string name="certificate_status">Signature Status</string>
     <string name="certificate_status_ecc">Certificate Status (ECC)</string>
     <string name="certificate_status_rsa">Certificate Status (RSA)</string>
     <string name="certificate_signed_by_google_root">Signed by Google root</string>

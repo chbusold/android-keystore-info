@@ -1,17 +1,17 @@
 package ws.busold.keystoreinfo.viewmodels;
 
 import android.content.Context;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import ws.busold.keystoreinfo.R;
 import ws.busold.keystoreinfo.models.CertificateChainStatus;
@@ -24,7 +24,17 @@ public class InstanceViewModel extends ViewModel {
     public LiveData<List<KeystoreInfo>> getInstanceList(Context context) {
         if (instanceList == null) {
             instanceList = new MutableLiveData<>();
-            new CollectKeystoreInfo(context, instanceList).execute();
+
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Handler handler = new Handler(Looper.getMainLooper());
+
+            executor.execute(() -> {
+                ArrayList<KeystoreInfo> info = new ArrayList<>();
+                info.add(new KeystoreInfo(context.getString(R.string.default_instance), false));
+                info.add(new KeystoreInfo(context.getString(R.string.strongbox_instance), true));
+
+                handler.post(() -> instanceList.setValue(info));
+            });
         }
         return instanceList;
     }
@@ -35,31 +45,5 @@ public class InstanceViewModel extends ViewModel {
 
     public LiveData<CertificateChainStatus> getSelectedChain() {
         return selectedChain;
-    }
-
-    static class CollectKeystoreInfo extends AsyncTask<Void, Void, ArrayList<KeystoreInfo>> {
-        private final MutableLiveData<List<KeystoreInfo>> instanceList;
-        private final HashMap<String, Boolean> instanceNames;
-
-        public CollectKeystoreInfo(@NotNull Context context, MutableLiveData<List<KeystoreInfo>> instanceList) {
-            this.instanceList = instanceList;
-            this.instanceNames = new HashMap<>();
-            instanceNames.put(context.getString(R.string.default_instance), false);
-            instanceNames.put(context.getString(R.string.strongbox_instance), true);
-        }
-
-        @Override
-        protected ArrayList<KeystoreInfo> doInBackground(Void... voids) {
-            ArrayList<KeystoreInfo> infoData = new ArrayList<>();
-            for(String name : instanceNames.keySet()) {
-                infoData.add(new KeystoreInfo(name, instanceNames.get(name)));
-            }
-            return infoData;
-        }
-
-        @Override
-        protected void onPostExecute(final @NotNull ArrayList<KeystoreInfo> result) {
-            instanceList.setValue(result);
-        }
     }
 }

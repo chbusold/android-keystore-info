@@ -90,8 +90,8 @@ public class CertificateChainStatus {
             "ex0SdDrx+tWUDqG8At2JHA==\n" +
             "-----END CERTIFICATE-----";
     public static final String KEYSTORE_GOOGLE_CRL_URL = "https://android.googleapis.com/attestation/status";
-    private CertificateStatus certificateStatus;
-    private RevocationStatus revocationStatus;
+    private final CertificateStatus certificateStatus;
+    private final RevocationStatus revocationStatus;
     private boolean signedByGoogleRoot;
     private X509Certificate[] chain;
 
@@ -178,7 +178,7 @@ public class CertificateChainStatus {
 
         joiner.add(context.getResources().getString(R.string.certificate_status) + ": " + certificateStatus.toString(context));
         joiner.add(context.getResources().getString(R.string.certificate_chain_length) + ": " + chain.length);
-        joiner.add(context.getResources().getString(R.string.certificate_chain_serials) + ": " + serials.toString());
+        joiner.add(context.getResources().getString(R.string.certificate_chain_serials) + ": " + serials);
         joiner.add(context.getResources().getString(R.string.certificate_signed_by_google_root) + ": " + (signedByGoogleRoot ? context.getResources().getString(R.string.yes) : context.getResources().getString(R.string.no)));
         joiner.add(context.getResources().getString(R.string.revocation_status) + ": " + revocationStatus.toString(context));
 

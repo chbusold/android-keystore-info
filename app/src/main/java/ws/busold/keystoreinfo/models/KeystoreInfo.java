@@ -45,66 +45,25 @@ public class KeystoreInfo {
     public static final int ASN1_TAG_VENDOR_PATCHLEVEL = 718;
     public static final int ASN1_TAG_BOOT_PATCHLEVEL = 719;
     private boolean available;
-    private int attestationVersion;
-    private SecurityLevel attestationSecurityLevel;
-    private int keymasterVersion;
-    private SecurityLevel keymasterSecurityLevel;
-    private RootOfTrust rootOfTrust;
-    private CharacteristicMap<IntegerCharacteristic> platformVersions;
-    private CharacteristicMap<ByteArrayCharacteristic> deviceIdentifiers;
-    private CertificateChainStatus eccCertificateChainStatus;
-    private CertificateChainStatus rsaCertificateChainStatus;
+    private boolean consistent;
+    private final CertInfo ecc = new CertInfo();
+    private final CertInfo rsa = new CertInfo();
     private final String instanceName;
 
     public KeystoreInfo(String name, boolean strongbox) {
         this.instanceName = name;
-        platformVersions = new CharacteristicMap<>();
-        deviceIdentifiers = new CharacteristicMap<>();
 
         try {
-            Certificate[] chain = loadKey(KeyType.ecc, strongbox, false);
+            Certificate[] chain = loadKey(KeyType.rsa, strongbox, false);
             available = chain != null;
         } catch (Exception e) {
             available = false;
         }
 
         if (available) {
-            try {
-                Certificate[] chain = loadKey(KeyType.ecc, strongbox, true);
-
-                X509Certificate[] x509Chain = new X509Certificate[chain.length];
-                for (int i = 0; i < chain.length; i++) {
-                    x509Chain[i] = (X509Certificate) chain[i];
-                }
-                eccCertificateChainStatus = new CertificateChainStatus(x509Chain);
-
-                extractKeyInfo(x509Chain[0]);
-            } catch (Exception e) {
-                attestationVersion = 0;
-                attestationSecurityLevel = SecurityLevel.None;
-                keymasterVersion = 0;
-                keymasterSecurityLevel = SecurityLevel.None;
-                rootOfTrust = new RootOfTrust();
-                platformVersions.clear();
-                deviceIdentifiers.clear();
-
-                eccCertificateChainStatus = new CertificateChainStatus();
-            }
-
-            try {
-                Certificate[] chain = loadKey(KeyType.rsa, strongbox, true);
-
-                X509Certificate[] x509Chain = new X509Certificate[chain.length];
-                for (int i = 0; i < chain.length; i++) {
-                    x509Chain[i] = (X509Certificate) chain[i];
-                }
-                rsaCertificateChainStatus = new CertificateChainStatus(x509Chain);
-            } catch (Exception e) {
-                rsaCertificateChainStatus = new CertificateChainStatus();
-            }
-        } else {
-            eccCertificateChainStatus = new CertificateChainStatus();
-            rsaCertificateChainStatus = new CertificateChainStatus();
+            ecc.createAttestation(KeyType.ecc, strongbox);
+            rsa.createAttestation(KeyType.rsa, strongbox);
+            consistent = !ecc.canAttest || !rsa.canAttest || rsa.infoEquals(ecc);
         }
     }
 
@@ -153,85 +112,58 @@ public class KeystoreInfo {
         kpg.generateKeyPair();
     }
 
-    private void extractKeyInfo(X509Certificate certificate) throws IOException {
-        byte[] extension = certificate.getExtensionValue(KEYSTORE_X509_EXTENSION_ID);
-        byte[] content = DEROctetString.getInstance(ASN1Primitive.fromByteArray(extension)).getOctets();
-        ASN1Sequence seq = ASN1Sequence.getInstance(ASN1Primitive.fromByteArray(content));
+    private static void deleteKey(KeyType type, boolean strongbox, boolean attestation) {
+        String name = "keystore-info-" + type.toString() + (strongbox ? "-sb" : "") + (attestation ? "-att" : "");
 
-        attestationVersion = ASN1Integer.getInstance(seq.getObjectAt(0)).intValueExact();
-        attestationSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(1)));
-        keymasterVersion = ASN1Integer.getInstance(seq.getObjectAt(2)).intValueExact();
-        keymasterSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(3)));
+        try {
+            KeyStore keystore = KeyStore.getInstance("AndroidKeyStore");
+            keystore.load(null);
+            keystore.deleteEntry(name);
+        } catch (Exception ignored) {
 
-        ASN1Sequence swEnforced = ASN1Sequence.getInstance(seq.getObjectAt(6));
-        ASN1Sequence hwEnforced = ASN1Sequence.getInstance(seq.getObjectAt(7));
-
-        rootOfTrust = new RootOfTrust(hwEnforced, swEnforced);
-
-        platformVersions.put("OS Version", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_VERSION));
-        platformVersions.put("OS Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_PATCHLEVEL));
-        platformVersions.put("Vendor Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_VENDOR_PATCHLEVEL));
-        platformVersions.put("Boot Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_BOOT_PATCHLEVEL));
-
-        deviceIdentifiers.put("Brand", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_BRAND));
-        deviceIdentifiers.put("Device", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_DEVICE));
-        deviceIdentifiers.put("Product", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_PRODUCT));
-        deviceIdentifiers.put("Serial", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_SERIAL));
-        deviceIdentifiers.put("IMEI", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_IMEI));
-        deviceIdentifiers.put("MEID", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MEID));
-        deviceIdentifiers.put("Manufacturer", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MANUFACTURER));
-        deviceIdentifiers.put("Model", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MODEL));
+        }
     }
 
     public boolean isAvailable() {
         return available;
     }
 
-    public String getAvailable(Context context) {
-        return isAvailable() ? context.getResources().getString(R.string.yes) : context.getResources().getString(R.string.no);
-    }
-
     public String getInstanceName() {
         return instanceName;
     }
 
+    public boolean supportsRsaAttest() {
+        return rsa.canAttest;
+    }
+    public boolean supportsEccAttest() {
+        return ecc.canAttest;
+    }
+    public boolean isCertInfoConsistent() {
+        return consistent;
+    }
+
     public String getAttestationVersion(Context context) {
-        StringJoiner joiner = new StringJoiner("\n");
-
-        joiner.add("Attestation Version: " + attestationVersion);
-        joiner.add("Attestation Security Level: " + attestationSecurityLevel.toString(context));
-        joiner.add("Keymaster Version: " + keymasterVersion);
-        joiner.add("Keymaster Security Level: " + keymasterSecurityLevel.toString(context));
-
-        return joiner.toString();
+        return rsa.canAttest ? rsa.getAttestationVersion(context) : ecc.getAttestationVersion(context);
     }
 
     public String getRootOfTrust(Context context) {
-        return rootOfTrust.toString(context);
+        return rsa.canAttest ? rsa.getRootOfTrust(context) : ecc.getRootOfTrust(context);
     }
 
     public String getPlatformVersions(Context context) {
-        return platformVersions.toString(context);
+        return rsa.canAttest ? rsa.getPlatformVersions(context) : ecc.getPlatformVersions(context);
     }
 
     public String getDeviceIdentifiers(Context context) {
-        return deviceIdentifiers.toString(context);
-    }
-
-    public CertificateChainStatus getEccCertificateStatus() {
-        return getCertificateStatus(KeyType.ecc);
-    }
-
-    public CertificateChainStatus getRsaCertificateStatus() {
-        return getCertificateStatus(KeyType.rsa);
+        return rsa.canAttest ? rsa.getDeviceIdentifiers(context) : ecc.getDeviceIdentifiers(context);
     }
 
     public CertificateChainStatus getCertificateStatus(KeyType type) {
         switch (type) {
             case ecc:
-                return eccCertificateChainStatus;
+                return ecc.certificateChainStatus;
             case rsa:
-                return rsaCertificateChainStatus;
+                return rsa.certificateChainStatus;
         }
         return null;
     }
@@ -247,6 +179,101 @@ public class KeystoreInfo {
             }
 
             return joiner.length() == 0 ? context.getResources().getString(R.string.not_present) : joiner.toString();
+        }
+    }
+
+    private static class CertInfo {
+        public boolean canAttest;
+        public int attestationVersion;
+        public SecurityLevel attestationSecurityLevel;
+        public int keymasterVersion;
+        public SecurityLevel keymasterSecurityLevel;
+        public RootOfTrust rootOfTrust;
+        public final CharacteristicMap<IntegerCharacteristic> platformVersions = new CharacteristicMap<>();
+        public final CharacteristicMap<ByteArrayCharacteristic> deviceIdentifiers = new CharacteristicMap<>();
+        public CertificateChainStatus certificateChainStatus;
+
+        private void extractKeyInfo(X509Certificate certificate) throws IOException {
+            byte[] extension = certificate.getExtensionValue(KEYSTORE_X509_EXTENSION_ID);
+            byte[] content = DEROctetString.getInstance(ASN1Primitive.fromByteArray(extension)).getOctets();
+            ASN1Sequence seq = ASN1Sequence.getInstance(ASN1Primitive.fromByteArray(content));
+
+            attestationVersion = ASN1Integer.getInstance(seq.getObjectAt(0)).intValueExact();
+            attestationSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(1)));
+            keymasterVersion = ASN1Integer.getInstance(seq.getObjectAt(2)).intValueExact();
+            keymasterSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(3)));
+
+            ASN1Sequence swEnforced = ASN1Sequence.getInstance(seq.getObjectAt(6));
+            ASN1Sequence hwEnforced = ASN1Sequence.getInstance(seq.getObjectAt(7));
+
+            rootOfTrust = new RootOfTrust(hwEnforced, swEnforced);
+
+            platformVersions.put("OS Version", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_VERSION));
+            platformVersions.put("OS Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_PATCHLEVEL));
+            platformVersions.put("Vendor Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_VENDOR_PATCHLEVEL));
+            platformVersions.put("Boot Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_BOOT_PATCHLEVEL));
+
+            deviceIdentifiers.put("Brand", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_BRAND));
+            deviceIdentifiers.put("Device", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_DEVICE));
+            deviceIdentifiers.put("Product", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_PRODUCT));
+            deviceIdentifiers.put("Serial", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_SERIAL));
+            deviceIdentifiers.put("IMEI", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_IMEI));
+            deviceIdentifiers.put("MEID", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MEID));
+            deviceIdentifiers.put("Manufacturer", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MANUFACTURER));
+            deviceIdentifiers.put("Model", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MODEL));
+        }
+
+        public boolean infoEquals(CertInfo other) {
+            return this.attestationSecurityLevel == other.attestationSecurityLevel
+                && this.attestationVersion == other.attestationVersion
+                && this.keymasterVersion == other.keymasterVersion
+                && this.keymasterSecurityLevel == other.keymasterSecurityLevel
+                && this.rootOfTrust.equals(other.rootOfTrust)
+                && this.platformVersions.equals(other.platformVersions)
+                && this.deviceIdentifiers.equals(other.deviceIdentifiers);
+        }
+
+        public void createAttestation(KeyType type, boolean strongbox) {
+            try {
+                deleteKey(type, strongbox, true);
+                Certificate[] chain = loadKey(type, strongbox, true);
+
+                X509Certificate[] x509Chain = new X509Certificate[chain.length];
+                for (int i = 0; i < chain.length; i++) {
+                    x509Chain[i] = (X509Certificate) chain[i];
+                }
+                certificateChainStatus = new CertificateChainStatus(x509Chain);
+
+                extractKeyInfo(x509Chain[0]);
+
+                canAttest = true;
+            } catch (Exception e) {
+                canAttest = false;
+                certificateChainStatus = new CertificateChainStatus();
+            }
+        }
+
+        public String getAttestationVersion(Context context) {
+            StringJoiner joiner = new StringJoiner("\n");
+
+            joiner.add("Attestation Version: " + attestationVersion);
+            joiner.add("Attestation Security Level: " + attestationSecurityLevel.toString(context));
+            joiner.add("Keymaster Version: " + keymasterVersion);
+            joiner.add("Keymaster Security Level: " + keymasterSecurityLevel.toString(context));
+
+            return joiner.toString();
+        }
+
+        public String getRootOfTrust(Context context) {
+            return rootOfTrust.toString(context);
+        }
+
+        public String getPlatformVersions(Context context) {
+            return platformVersions.toString(context);
+        }
+
+        public String getDeviceIdentifiers(Context context) {
+            return deviceIdentifiers.toString(context);
         }
     }
 

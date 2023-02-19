@@ -11,14 +11,17 @@ public abstract class KeystoreCharacteristic {
     private final int tag;
     protected KeystoreInfo.Source source;
 
-    KeystoreCharacteristic() {
-        tag = 0;
-        source = KeystoreInfo.Source.notPresent;
-    }
-
     KeystoreCharacteristic(ASN1Sequence hwEnforced, ASN1Sequence swEnforced, int tag) {
         this.tag = tag;
         get(hwEnforced, swEnforced);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof KeystoreCharacteristic) {
+            return this.source == ((KeystoreCharacteristic) obj).source;
+        }
+        return false;
     }
 
     abstract protected void fromASN1Primitive(ASN1Primitive object, KeystoreInfo.Source source);

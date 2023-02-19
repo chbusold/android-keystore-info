@@ -1,5 +1,6 @@
 package ws.busold.keystoreinfo.adapters;
 
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -43,6 +44,7 @@ public class CertificateRecyclerViewAdapter extends RecyclerView.Adapter<Certifi
         return data.size();
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setData(X509Certificate[] chain) {
         if (chain != null) {
             data.clear();

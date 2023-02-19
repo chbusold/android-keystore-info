@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import ws.busold.keystoreinfo.adapters.KeystoreInfoRecyclerViewAdapter;
+import ws.busold.keystoreinfo.models.DeviceInfo;
 import ws.busold.keystoreinfo.viewmodels.InstanceViewModel;
 
 public class InstanceListFragment extends Fragment {
@@ -26,10 +27,10 @@ public class InstanceListFragment extends Fragment {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        adapter = new KeystoreInfoRecyclerViewAdapter(this);
+        adapter = new KeystoreInfoRecyclerViewAdapter(this, new DeviceInfo(view.getContext()));
 
         model = new ViewModelProvider(requireActivity()).get(InstanceViewModel.class);
-        model.getInstanceList(getContext()).observe(getViewLifecycleOwner(), instanceList -> adapter.setData(instanceList));
+        model.getInstanceList(getContext()).observe(getViewLifecycleOwner(), instanceList -> adapter.setKeystoreInfo(instanceList));
 
         RecyclerView recyclerView = view.findViewById(R.id.instanceRecyclerView);
         recyclerView.setAdapter(adapter);
