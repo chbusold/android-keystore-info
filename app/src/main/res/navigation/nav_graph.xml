@@ -7,7 +7,7 @@
         android:id="@+id/instanceListFragment"
         android:name="ws.busold.keystoreinfo.InstanceListFragment"
         android:label="fragment_instance_list"
-        tools:layout="@layout/fragment_instance_list" >
+        tools:layout="@layout/fragment_instance_list">
         <action
             android:id="@+id/action_instanceListFragment_to_certificateChainFragment"
             app:destination="@id/certificateChainFragment" />

@@ -44,11 +44,11 @@ public class KeystoreInfo {
     public static final int ASN1_TAG_ID_MODEL = 717;
     public static final int ASN1_TAG_VENDOR_PATCHLEVEL = 718;
     public static final int ASN1_TAG_BOOT_PATCHLEVEL = 719;
-    private boolean available;
-    private boolean consistent;
     private final CertInfo ecc = new CertInfo();
     private final CertInfo rsa = new CertInfo();
     private final String instanceName;
+    private boolean available;
+    private boolean consistent;
 
     public KeystoreInfo(String name, boolean strongbox) {
         this.instanceName = name;
@@ -89,10 +89,10 @@ public class KeystoreInfo {
     private static void createKey(String name, KeyType type, boolean strongbox, boolean attestation)
             throws NoSuchProviderException, NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         KeyGenParameterSpec.Builder spec = new KeyGenParameterSpec.Builder(
-            name,
-            KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_VERIFY)
-            .setAlgorithmParameterSpec(type.getSpec())
-            .setDigests(KeyProperties.DIGEST_SHA256);
+                name,
+                KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_VERIFY)
+                .setAlgorithmParameterSpec(type.getSpec())
+                .setDigests(KeyProperties.DIGEST_SHA256);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             spec.setIsStrongBoxBacked(strongbox);
@@ -135,9 +135,11 @@ public class KeystoreInfo {
     public boolean supportsRsaAttest() {
         return rsa.canAttest;
     }
+
     public boolean supportsEccAttest() {
         return ecc.canAttest;
     }
+
     public boolean isCertInfoConsistent() {
         return consistent;
     }
@@ -168,120 +170,24 @@ public class KeystoreInfo {
         return null;
     }
 
-    private static class CharacteristicMap<T extends KeystoreCharacteristic> extends HashMap<String, T> {
-        public String toString(Context context) {
-            StringJoiner joiner = new StringJoiner("\n");
-
-            for (String key : keySet()) {
-                if (Objects.requireNonNull(get(key)).getSource() != Source.notPresent) {
-                    joiner.add(key + ": " + Objects.requireNonNull(get(key)).toString(context));
-                }
-            }
-
-            return joiner.length() == 0 ? context.getResources().getString(R.string.not_present) : joiner.toString();
-        }
-    }
-
-    private static class CertInfo {
-        public boolean canAttest;
-        public int attestationVersion;
-        public SecurityLevel attestationSecurityLevel;
-        public int keymasterVersion;
-        public SecurityLevel keymasterSecurityLevel;
-        public RootOfTrust rootOfTrust;
-        public final CharacteristicMap<IntegerCharacteristic> platformVersions = new CharacteristicMap<>();
-        public final CharacteristicMap<ByteArrayCharacteristic> deviceIdentifiers = new CharacteristicMap<>();
-        public CertificateChainStatus certificateChainStatus;
-
-        private void extractKeyInfo(X509Certificate certificate) throws IOException {
-            byte[] extension = certificate.getExtensionValue(KEYSTORE_X509_EXTENSION_ID);
-            byte[] content = DEROctetString.getInstance(ASN1Primitive.fromByteArray(extension)).getOctets();
-            ASN1Sequence seq = ASN1Sequence.getInstance(ASN1Primitive.fromByteArray(content));
-
-            attestationVersion = ASN1Integer.getInstance(seq.getObjectAt(0)).intValueExact();
-            attestationSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(1)));
-            keymasterVersion = ASN1Integer.getInstance(seq.getObjectAt(2)).intValueExact();
-            keymasterSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(3)));
-
-            ASN1Sequence swEnforced = ASN1Sequence.getInstance(seq.getObjectAt(6));
-            ASN1Sequence hwEnforced = ASN1Sequence.getInstance(seq.getObjectAt(7));
-
-            rootOfTrust = new RootOfTrust(hwEnforced, swEnforced);
-
-            platformVersions.put("OS Version", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_VERSION));
-            platformVersions.put("OS Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_PATCHLEVEL));
-            platformVersions.put("Vendor Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_VENDOR_PATCHLEVEL));
-            platformVersions.put("Boot Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_BOOT_PATCHLEVEL));
-
-            deviceIdentifiers.put("Brand", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_BRAND));
-            deviceIdentifiers.put("Device", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_DEVICE));
-            deviceIdentifiers.put("Product", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_PRODUCT));
-            deviceIdentifiers.put("Serial", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_SERIAL));
-            deviceIdentifiers.put("IMEI", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_IMEI));
-            deviceIdentifiers.put("MEID", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MEID));
-            deviceIdentifiers.put("Manufacturer", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MANUFACTURER));
-            deviceIdentifiers.put("Model", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MODEL));
-        }
-
-        public boolean infoEquals(CertInfo other) {
-            return this.attestationSecurityLevel == other.attestationSecurityLevel
-                && this.attestationVersion == other.attestationVersion
-                && this.keymasterVersion == other.keymasterVersion
-                && this.keymasterSecurityLevel == other.keymasterSecurityLevel
-                && this.rootOfTrust.equals(other.rootOfTrust)
-                && this.platformVersions.equals(other.platformVersions)
-                && this.deviceIdentifiers.equals(other.deviceIdentifiers);
-        }
-
-        public void createAttestation(KeyType type, boolean strongbox) {
-            try {
-                deleteKey(type, strongbox, true);
-                Certificate[] chain = loadKey(type, strongbox, true);
-
-                X509Certificate[] x509Chain = new X509Certificate[chain.length];
-                for (int i = 0; i < chain.length; i++) {
-                    x509Chain[i] = (X509Certificate) chain[i];
-                }
-                certificateChainStatus = new CertificateChainStatus(x509Chain);
-
-                extractKeyInfo(x509Chain[0]);
-
-                canAttest = true;
-            } catch (Exception e) {
-                canAttest = false;
-                certificateChainStatus = new CertificateChainStatus();
-            }
-        }
-
-        public String getAttestationVersion(Context context) {
-            StringJoiner joiner = new StringJoiner("\n");
-
-            joiner.add("Attestation Version: " + attestationVersion);
-            joiner.add("Attestation Security Level: " + attestationSecurityLevel.toString(context));
-            joiner.add("Keymaster Version: " + keymasterVersion);
-            joiner.add("Keymaster Security Level: " + keymasterSecurityLevel.toString(context));
-
-            return joiner.toString();
-        }
-
-        public String getRootOfTrust(Context context) {
-            return rootOfTrust.toString(context);
-        }
-
-        public String getPlatformVersions(Context context) {
-            return platformVersions.toString(context);
-        }
-
-        public String getDeviceIdentifiers(Context context) {
-            return deviceIdentifiers.toString(context);
-        }
-    }
-
     public enum SecurityLevel {
         Software,
         TrustedEnvironment,
         StrongBox,
         None;
+
+        public static SecurityLevel fromASN1Enumerated(@NotNull ASN1Enumerated object) {
+            switch (object.intValueExact()) {
+                case 0:
+                    return SecurityLevel.Software;
+                case 1:
+                    return SecurityLevel.TrustedEnvironment;
+                case 2:
+                    return SecurityLevel.StrongBox;
+                default:
+                    return SecurityLevel.None;
+            }
+        }
 
         public String toString(Context context) {
             switch (this) {
@@ -295,19 +201,6 @@ public class KeystoreInfo {
                     return context.getResources().getString(R.string.not_present);
             }
             return context.getResources().getString(R.string.value_error);
-        }
-
-        public static SecurityLevel fromASN1Enumerated(@NotNull ASN1Enumerated object) {
-            switch (object.intValueExact()) {
-                case 0:
-                    return SecurityLevel.Software;
-                case 1:
-                    return SecurityLevel.TrustedEnvironment;
-                case 2:
-                    return SecurityLevel.StrongBox;
-                default:
-                    return SecurityLevel.None;
-            }
         }
     }
 
@@ -351,6 +244,115 @@ public class KeystoreInfo {
                     return KeyProperties.KEY_ALGORITHM_RSA;
             }
             throw new InvalidAlgorithmParameterException();
+        }
+    }
+
+    private static class CharacteristicMap<T extends KeystoreCharacteristic> extends HashMap<String, T> {
+        public String toString(Context context) {
+            StringJoiner joiner = new StringJoiner("\n");
+
+            for (String key : keySet()) {
+                if (Objects.requireNonNull(get(key)).getSource() != Source.notPresent) {
+                    joiner.add(key + ": " + Objects.requireNonNull(get(key)).toString(context));
+                }
+            }
+
+            return joiner.length() == 0 ? context.getResources().getString(R.string.not_present) : joiner.toString();
+        }
+    }
+
+    private static class CertInfo {
+        public final CharacteristicMap<IntegerCharacteristic> platformVersions = new CharacteristicMap<>();
+        public final CharacteristicMap<ByteArrayCharacteristic> deviceIdentifiers = new CharacteristicMap<>();
+        public boolean canAttest;
+        public int attestationVersion;
+        public SecurityLevel attestationSecurityLevel;
+        public int keymasterVersion;
+        public SecurityLevel keymasterSecurityLevel;
+        public RootOfTrust rootOfTrust;
+        public CertificateChainStatus certificateChainStatus;
+
+        private void extractKeyInfo(X509Certificate certificate) throws IOException {
+            byte[] extension = certificate.getExtensionValue(KEYSTORE_X509_EXTENSION_ID);
+            byte[] content = DEROctetString.getInstance(ASN1Primitive.fromByteArray(extension)).getOctets();
+            ASN1Sequence seq = ASN1Sequence.getInstance(ASN1Primitive.fromByteArray(content));
+
+            attestationVersion = ASN1Integer.getInstance(seq.getObjectAt(0)).intValueExact();
+            attestationSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(1)));
+            keymasterVersion = ASN1Integer.getInstance(seq.getObjectAt(2)).intValueExact();
+            keymasterSecurityLevel = SecurityLevel.fromASN1Enumerated(ASN1Enumerated.getInstance(seq.getObjectAt(3)));
+
+            ASN1Sequence swEnforced = ASN1Sequence.getInstance(seq.getObjectAt(6));
+            ASN1Sequence hwEnforced = ASN1Sequence.getInstance(seq.getObjectAt(7));
+
+            rootOfTrust = new RootOfTrust(hwEnforced, swEnforced);
+
+            platformVersions.put("OS Version", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_VERSION));
+            platformVersions.put("OS Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_OS_PATCHLEVEL));
+            platformVersions.put("Vendor Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_VENDOR_PATCHLEVEL));
+            platformVersions.put("Boot Patchlevel", new IntegerCharacteristic(hwEnforced, swEnforced, ASN1_TAG_BOOT_PATCHLEVEL));
+
+            deviceIdentifiers.put("Brand", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_BRAND));
+            deviceIdentifiers.put("Device", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_DEVICE));
+            deviceIdentifiers.put("Product", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_PRODUCT));
+            deviceIdentifiers.put("Serial", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_SERIAL));
+            deviceIdentifiers.put("IMEI", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_IMEI));
+            deviceIdentifiers.put("MEID", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MEID));
+            deviceIdentifiers.put("Manufacturer", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MANUFACTURER));
+            deviceIdentifiers.put("Model", new ByteArrayCharacteristic(hwEnforced, swEnforced, ASN1_TAG_ID_MODEL));
+        }
+
+        public boolean infoEquals(CertInfo other) {
+            return this.attestationSecurityLevel == other.attestationSecurityLevel
+                   && this.attestationVersion == other.attestationVersion
+                   && this.keymasterVersion == other.keymasterVersion
+                   && this.keymasterSecurityLevel == other.keymasterSecurityLevel
+                   && this.rootOfTrust.equals(other.rootOfTrust)
+                   && this.platformVersions.equals(other.platformVersions)
+                   && this.deviceIdentifiers.equals(other.deviceIdentifiers);
+        }
+
+        public void createAttestation(KeyType type, boolean strongbox) {
+            try {
+                deleteKey(type, strongbox, true);
+                Certificate[] chain = loadKey(type, strongbox, true);
+
+                X509Certificate[] x509Chain = new X509Certificate[chain.length];
+                for (int i = 0; i < chain.length; i++) {
+                    x509Chain[i] = (X509Certificate) chain[i];
+                }
+                certificateChainStatus = new CertificateChainStatus(x509Chain);
+
+                extractKeyInfo(x509Chain[0]);
+
+                canAttest = true;
+            } catch (Exception e) {
+                canAttest = false;
+                certificateChainStatus = new CertificateChainStatus();
+            }
+        }
+
+        public String getAttestationVersion(Context context) {
+            StringJoiner joiner = new StringJoiner("\n");
+
+            joiner.add("Attestation Version: " + attestationVersion);
+            joiner.add("Attestation Security Level: " + attestationSecurityLevel.toString(context));
+            joiner.add("Keymaster Version: " + keymasterVersion);
+            joiner.add("Keymaster Security Level: " + keymasterSecurityLevel.toString(context));
+
+            return joiner.toString();
+        }
+
+        public String getRootOfTrust(Context context) {
+            return rootOfTrust.toString(context);
+        }
+
+        public String getPlatformVersions(Context context) {
+            return platformVersions.toString(context);
+        }
+
+        public String getDeviceIdentifiers(Context context) {
+            return deviceIdentifiers.toString(context);
         }
     }
 }

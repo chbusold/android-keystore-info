@@ -18,8 +18,8 @@ import ws.busold.keystoreinfo.models.CertificateChainStatus;
 import ws.busold.keystoreinfo.models.KeystoreInfo;
 
 public class InstanceViewModel extends ViewModel {
-    private MutableLiveData<List<KeystoreInfo>> instanceList;
     private final MutableLiveData<CertificateChainStatus> selectedChain = new MutableLiveData<>();
+    private MutableLiveData<List<KeystoreInfo>> instanceList;
 
     public LiveData<List<KeystoreInfo>> getInstanceList(Context context) {
         if (instanceList == null) {
@@ -39,11 +39,11 @@ public class InstanceViewModel extends ViewModel {
         return instanceList;
     }
 
-    public void setSelectedChain(CertificateChainStatus chain) {
-        selectedChain.setValue(chain);
-    }
-
     public LiveData<CertificateChainStatus> getSelectedChain() {
         return selectedChain;
+    }
+
+    public void setSelectedChain(CertificateChainStatus chain) {
+        selectedChain.setValue(chain);
     }
 }
