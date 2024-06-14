@@ -2,6 +2,7 @@
     <string name="app_name" translatable="false">Keystore Info</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="unknown">Unknown</string>
     <string name="default_instance">Default Instance</string>
     <string name="strongbox_instance">Strongbox Instance</string>
     <string name="device_information">Device Information</string>
